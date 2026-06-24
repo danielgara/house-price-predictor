@@ -1,15 +1,41 @@
+import warnings
+
 import joblib
 import pandas as pd
+import sklearn
 from datetime import datetime
+
 from schemas import HousePredictionRequest, PredictionResponse
 
 # Load model and preprocessor
 MODEL_PATH = "models/trained/house_price_model.pkl"
 PREPROCESSOR_PATH = "models/trained/preprocessor.pkl"
 
+
+def _load_sklearn_artifact(path: str):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        artifact = joblib.load(path)
+    for warning in caught:
+        message = str(warning.message)
+        if "Trying to unpickle estimator" in message and "when using version" in message:
+            raise RuntimeError(
+                f"Incompatible scikit-learn version for {path}: {message} "
+                f"Re-create the artifact with scikit-learn {sklearn.__version__} "
+                "and rebuild the Docker image."
+            )
+    return artifact
+
+
 try:
-    model = joblib.load(MODEL_PATH)
-    preprocessor = joblib.load(PREPROCESSOR_PATH)
+    model = _load_sklearn_artifact(MODEL_PATH)
+    preprocessor = _load_sklearn_artifact(PREPROCESSOR_PATH)
+    if not hasattr(preprocessor, "_name_to_fitted_passthrough"):
+        raise RuntimeError(
+            "Preprocessor is incompatible with this scikit-learn version. "
+            f"Re-run feature engineering with scikit-learn {sklearn.__version__} "
+            "and rebuild the Docker image."
+        )
 except Exception as e:
     raise RuntimeError(f"Error loading model or preprocessor: {str(e)}")
 
