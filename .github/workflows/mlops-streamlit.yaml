@@ -22,7 +22,7 @@ jobs:
         docker login -u $DOCKER_USER -p $DOCKER_PASS
   
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag danielgara/streamlit:latest
+      run: docker build ./streamlit_app --tag danielgara/streamlit:latest
 
     - name: Docker Push
       run: docker push danielgara/streamlit
